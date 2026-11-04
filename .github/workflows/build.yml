@@ -1,0 +1,73 @@
+name: Build
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Linux (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [linux64, linux32]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build
+        run: nix build ".#${{ matrix.package }}" --print-build-logs
+
+      - name: Upload modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: gm_bytecode-${{ matrix.package }}
+          path: |
+            result/lib/gmsv_bytecode_*.dll
+            result/lib/gmcl_bytecode_*.dll
+          if-no-files-found: error
+
+  windows:
+    name: Windows (${{ matrix.target }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: win64
+            preset: win64-msvc
+          - target: win32
+            preset: win32-msvc
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }} --config Release
+
+      - name: Upload modules
+        uses: actions/upload-artifact@v4
+        with:
+          name: gm_bytecode-${{ matrix.target }}
+          path: |
+            build/${{ matrix.preset }}/Release/gmsv_bytecode_*.dll
+            build/${{ matrix.preset }}/Release/gmcl_bytecode_*.dll
+          if-no-files-found: error

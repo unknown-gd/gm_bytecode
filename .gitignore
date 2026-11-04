@@ -1,2 +1,16 @@
-/target
+/build/
+/build-*/
+/out/
+/result
+/result-*
+/flake.lock
 /.vscode
+/CMakeUserPresets.json
+/cmake-build-*/
+*.user
+*.suo
+*.ncb
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
