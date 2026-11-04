@@ -26,24 +26,23 @@ int load_bytecode(lua_State *L) {
 
   auto [code, len] = state.get_string_data(1);
   if (!code) {
-    return push_error(
-        state, "bytecode_load_bytecode: argument #1 must be a bytecode string");
+    return push_error(state,
+                      "load_bytecode: argument #1 must be a bytecode string");
   }
 
   if (len == 0) {
-    return push_error(state, "bytecode_load_bytecode: argument #1 is empty");
+    return push_error(state, "load_bytecode: argument #1 is empty");
   }
 
   if (state.load_buffer(code, len, "=bytecode") != 0) {
     auto [err, err_len] = state.get_string_data(-1);
     if (!err || err_len == 0) {
       state.pop();
-      return push_error(state,
-                        "bytecode_load_bytecode: failed to load bytecode");
+      return push_error(state, "load_bytecode: failed to load bytecode");
     }
 
     // Replace the raw compiler error with a prefixed message for clarity.
-    std::string message = "bytecode_load_bytecode: ";
+    std::string message = "load_bytecode: ";
     message.append(err, err_len);
     state.pop();
     return push_error(state, message);
