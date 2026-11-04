@@ -30,46 +30,32 @@
     },
     {
       "name": "win64",
-      "displayName": "Windows x64 (GMod 64-bit)",
+      "displayName": "Windows x64 (MSVC + Ninja)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/win64",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GM_BYTECODE_TARGET": "win64",
-        "CMAKE_SYSTEM_NAME": "Windows"
+        "GM_BYTECODE_TARGET": "win64"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     },
     {
       "name": "win32",
-      "displayName": "Windows x86 (GMod 32-bit)",
+      "displayName": "Windows x86 (MSVC + Ninja)",
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/build/win32",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
-        "GM_BYTECODE_TARGET": "win32",
-        "CMAKE_SYSTEM_NAME": "Windows"
-      }
-    },
-    {
-      "name": "win64-msvc",
-      "displayName": "Windows x64 MSVC",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
-      "binaryDir": "${sourceDir}/build/win64-msvc",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
-        "GM_BYTECODE_TARGET": "win64"
-      }
-    },
-    {
-      "name": "win32-msvc",
-      "displayName": "Windows x86 MSVC",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "Win32",
-      "binaryDir": "${sourceDir}/build/win32-msvc",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release",
         "GM_BYTECODE_TARGET": "win32"
+      },
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Windows"
       }
     }
   ],
@@ -77,8 +63,6 @@
     { "name": "linux64", "configurePreset": "linux64" },
     { "name": "linux32", "configurePreset": "linux32" },
     { "name": "win64", "configurePreset": "win64" },
-    { "name": "win32", "configurePreset": "win32" },
-    { "name": "win64-msvc", "configurePreset": "win64-msvc", "configuration": "Release" },
-    { "name": "win32-msvc", "configurePreset": "win32-msvc", "configuration": "Release" }
+    { "name": "win32", "configurePreset": "win32" }
   ]
 }

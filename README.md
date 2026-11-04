@@ -39,15 +39,15 @@ nix develop               # cmake, ninja, gcc, i686 toolchain
 cmake --preset linux64 && cmake --build --preset linux64
 cmake --preset linux32 && cmake --build --preset linux32
 
-# Native MSVC on Windows
-cmake --preset win64-msvc && cmake --build --preset win64-msvc
-cmake --preset win32-msvc && cmake --build --preset win32-msvc
+# Windows — run from an MSVC Developer shell (or after vcvarsall), with Ninja installed
+cmake --preset win64 && cmake --build --preset win64
+cmake --preset win32 && cmake --build --preset win32
 ```
 
 Or set the target explicitly:
 
 ```sh
-cmake -B build -DGM_BYTECODE_TARGET=linux64|linux32|win64|win32 -DCMAKE_BUILD_TYPE=Release
+cmake -B build -G Ninja -DGM_BYTECODE_TARGET=linux64|linux32|win64|win32 -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
@@ -59,18 +59,18 @@ cd gm_bytecode
 
 **Linux**
 ```sh
-cmake -B build-linux64 -DGM_BYTECODE_TARGET=linux64 -DCMAKE_BUILD_TYPE=Release
+cmake -B build-linux64 -G Ninja -DGM_BYTECODE_TARGET=linux64 -DCMAKE_BUILD_TYPE=Release
 cmake --build build-linux64
 
-cmake -B build-linux32 -DGM_BYTECODE_TARGET=linux32 -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_C_FLAGS=-m32 -DCMAKE_BUILD_TYPE=Release
+cmake -B build-linux32 -G Ninja -DGM_BYTECODE_TARGET=linux32 -DCMAKE_CXX_FLAGS=-m32 -DCMAKE_C_FLAGS=-m32 -DCMAKE_BUILD_TYPE=Release
 cmake --build build-linux32
 ```
 
-**Windows (MSVC)**
+**Windows (MSVC Developer shell + Ninja)**
 ```sh
-cmake -B build-win64 -A x64 -DGM_BYTECODE_TARGET=win64 -DCMAKE_BUILD_TYPE=Release
-cmake --build build-win64 --config Release
+cmake -B build-win64 -G Ninja -DGM_BYTECODE_TARGET=win64 -DCMAKE_BUILD_TYPE=Release
+cmake --build build-win64
 
-cmake -B build-win32 -A Win32 -DGM_BYTECODE_TARGET=win32 -DCMAKE_BUILD_TYPE=Release
-cmake --build build-win32 --config Release
+cmake -B build-win32 -G Ninja -DGM_BYTECODE_TARGET=win32 -DCMAKE_BUILD_TYPE=Release
+cmake --build build-win32
 ```
