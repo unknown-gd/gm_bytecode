@@ -5,13 +5,21 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs =
+    { self, nixpkgs }:
     let
       # GMod Linux modules are x86/x86_64 only.
       systems = [ "x86_64-linux" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
 
-      mkGmBytecode = { stdenv, cmake, lib, pnameSuffix ? "", metaPlatforms ? lib.platforms.linux }:
+      mkGmBytecode =
+        {
+          stdenv,
+          cmake,
+          lib,
+          pnameSuffix ? "",
+          metaPlatforms ? lib.platforms.linux,
+        }:
         stdenv.mkDerivation {
           pname = "gm_bytecode${pnameSuffix}";
           version = "0.0.1";
@@ -39,7 +47,8 @@
         };
     in
     {
-      packages = forAllSystems (system:
+      packages = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
 
@@ -55,7 +64,10 @@
 
           all = pkgs.symlinkJoin {
             name = "gm_bytecode-all";
-            paths = [ linux64 linux32 ];
+            paths = [
+              linux64
+              linux32
+            ];
             meta = {
               description = "gm_bytecode GMod modules (gmsv_/gmcl_, linux32 + linux64)";
             };
@@ -64,9 +76,11 @@
         {
           inherit linux64 linux32 all;
           default = all;
-        });
+        }
+      );
 
-      devShells = forAllSystems (system:
+      devShells = forAllSystems (
+        system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
         in
@@ -79,6 +93,7 @@
               pkgs.pkgsi686Linux.gcc
             ];
           };
-        });
+        }
+      );
     };
 }
