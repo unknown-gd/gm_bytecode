@@ -21,12 +21,16 @@ struct LuaAPI {
     int (*lua_error)(lua_State *L) = nullptr;
 
     bool ready() const { return loaded_; }
+    bool can_raise() const { return lua_pushlstring != nullptr && lua_error != nullptr; }
     const std::string &error() const { return error_; }
 
     bool load();
+    void unload();
 
 private:
     bool loaded_ = false;
+    bool library_owned_ = false;
+    void *library_ = nullptr;
     std::string error_;
 };
 

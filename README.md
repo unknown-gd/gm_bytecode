@@ -34,8 +34,32 @@ nix build .#linux64
 nix build .#linux32
 nix build .#all
 
-nix develop               # cmake, ninja, gcc, i686 toolchain
+nix develop               # cmake, ninja, gcc, i686 toolchain, clangd
 ```
+
+### Editor / clangd (NixOS + Zed)
+
+`std` / missing-header squiggles mean clangd has no compile database or cannot see the nix gcc-wrapper includes.
+
+```sh
+nix develop -c cmake --preset linux64   # writes build/linux64/compile_commands.json
+```
+
+`.clangd` points at that database. For **Zed**, create `.zed/settings.json` (gitignored locally) pointing at the repo wrapper, which injects `--query-driver`:
+
+```json
+{
+  "lsp": {
+    "clangd": {
+      "binary": {
+        "path": "/ABS/PATH/TO/gm_bytecode/tools/zed-clangd"
+      }
+    }
+  }
+}
+```
+
+Or set the same under `lsp.clangd.binary` in `~/.config/zed/settings.json`, then restart clangd / reload Zed.
 
 ### CMake presets
 

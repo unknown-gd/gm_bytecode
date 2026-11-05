@@ -85,14 +85,31 @@
           pkgs = nixpkgs.legacyPackages.${system};
         in
         {
-          default = pkgs.mkShell {
-            packages = [
-              pkgs.cmake
-              pkgs.ninja
-              pkgs.gcc
-              pkgs.pkgsi686Linux.gcc
-            ];
-          };
+          default =
+            let
+              # Nix gcc-wrapper injects libstdc++/glibc paths; clangd only
+              # discovers them if allowed to exec the driver.
+              queryDriver = "${pkgs.stdenv.cc}/bin/*";
+              clangdForNix = pkgs.writeShellScriptBin "clangd" ''
+                exec ${pkgs.clang-tools}/bin/clangd --query-driver=${queryDriver} "$@"
+              '';
+            in
+            pkgs.mkShell {
+              packages = [
+                pkgs.cmake
+                pkgs.ninja
+                pkgs.gcc
+                pkgs.pkgsi686Linux.gcc
+                clangdForNix
+                pkgs.clang-tools # clang-format / clang-tidy (clangd comes from wrapper above)
+              ];
+
+              shellHook = ''
+                if [ -f build/linux64/compile_commands.json ]; then
+                  ln -sfn build/linux64/compile_commands.json compile_commands.json
+                fi
+              '';
+            };
         }
       );
     };

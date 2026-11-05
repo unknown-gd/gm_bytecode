@@ -1,6 +1,7 @@
 #include "lua_api.hpp"
 
 #include <cstdio>
+#include <cstring>
 #include <string>
 
 #if defined(_WIN32)
@@ -15,8 +16,27 @@ namespace {
 #if defined(_WIN32)
 using LibraryHandle = HMODULE;
 
-LibraryHandle open_library(const char *path) {
+const char *file_name(const char *path) {
+    const char *base = path;
+    for (const char *p = path; *p != '\0'; ++p) {
+        if (*p == '/' || *p == '\\') {
+            base = p + 1;
+        }
+    }
+    return base;
+}
+
+LibraryHandle get_loaded_library(const char *path) {
+    // Module handles are keyed by the loaded file name, not a relative path.
+    return GetModuleHandleA(file_name(path));
+}
+
+LibraryHandle load_library(const char *path) {
     return LoadLibraryA(path);
+}
+
+void close_library(LibraryHandle lib) {
+    FreeLibrary(lib);
 }
 
 void *resolve_symbol(LibraryHandle lib, const char *name) {
@@ -55,8 +75,16 @@ std::string last_os_error() {
 #else
 using LibraryHandle = void *;
 
-LibraryHandle open_library(const char *path) {
-    return dlopen(path, RTLD_LAZY | RTLD_GLOBAL);
+LibraryHandle get_loaded_library(const char *path) {
+    return dlopen(path, RTLD_LAZY | RTLD_LOCAL | RTLD_NOLOAD);
+}
+
+LibraryHandle load_library(const char *path) {
+    return dlopen(path, RTLD_LAZY | RTLD_LOCAL);
+}
+
+void close_library(LibraryHandle lib) {
+    dlclose(lib);
 }
 
 void *resolve_symbol(LibraryHandle lib, const char *name) {
@@ -68,6 +96,13 @@ std::string last_os_error() {
     return err ? err : "unknown error";
 }
 #endif
+
+struct OpenedLibrary {
+    LibraryHandle handle = nullptr;
+    // Windows: false for GetModuleHandle (do not FreeLibrary).
+    // Linux: always true — every successful dlopen bumps the refcount.
+    bool owned = false;
+};
 
 const char *const *lua_shared_candidates() {
 #if defined(GM_BYTECODE_TARGET_win64)
@@ -87,7 +122,6 @@ const char *const *lua_shared_candidates() {
     };
 #elif defined(GM_BYTECODE_TARGET_linux64)
 #if defined(GM_BYTECODE_CLIENT)
-    // Client prefers the non-_srv library.
     static const char *const candidates[] = {
         "lua_shared.so",
         "bin/linux64/lua_shared.so",
@@ -118,7 +152,6 @@ const char *const *lua_shared_candidates() {
     };
 #endif
 #else
-    // linux32 (GMod 32-bit branch)
 #if defined(GM_BYTECODE_CLIENT)
     static const char *const candidates[] = {
         "lua_shared.so",
@@ -150,12 +183,20 @@ const char *const *lua_shared_candidates() {
     return candidates;
 }
 
-LibraryHandle find_lua_shared(std::string &error) {
+OpenedLibrary find_lua_shared(std::string &error) {
     std::string attempts;
 
     for (const char *const *path = lua_shared_candidates(); *path != nullptr; ++path) {
-        if (LibraryHandle lib = open_library(*path)) {
-            return lib;
+        if (LibraryHandle lib = get_loaded_library(*path)) {
+#if defined(_WIN32)
+            return {lib, false};
+#else
+            return {lib, true};
+#endif
+        }
+
+        if (LibraryHandle lib = load_library(*path)) {
+            return {lib, true};
         }
 
         if (!attempts.empty()) {
@@ -168,13 +209,13 @@ LibraryHandle find_lua_shared(std::string &error) {
     }
 
     error = "could not load lua_shared; tried: " + attempts;
-    return nullptr;
+    return {};
 }
 
 template <typename T>
 bool bind(LibraryHandle lib, const char *name, T &out, std::string &error) {
 #if !defined(_WIN32)
-    dlerror(); // clear any prior error before dlsym
+    dlerror();
 #endif
     void *symbol = resolve_symbol(lib, name);
     if (!symbol) {
@@ -193,26 +234,38 @@ bool LuaAPI::load() {
         return true;
     }
 
+    unload();
     error_.clear();
 
-    LibraryHandle lib = find_lua_shared(error_);
-    if (!lib) {
+    const OpenedLibrary opened = find_lua_shared(error_);
+    if (!opened.handle) {
         std::fprintf(stderr, "bytecode: %s\n", error_.c_str());
         return false;
     }
 
-    // Keep the library loaded for the lifetime of the process.
+    library_ = opened.handle;
+    library_owned_ = opened.owned;
+
+    auto *const lib = static_cast<LibraryHandle>(library_);
+
+    // Bind raise helpers first so gmod13_open can still throw on later failures.
+    if (!bind(lib, "lua_pushlstring", lua_pushlstring, error_) ||
+        !bind(lib, "lua_error", lua_error, error_)) {
+        std::fprintf(stderr, "bytecode: %s\n", error_.c_str());
+        unload();
+        return false;
+    }
+
     const bool ok = bind(lib, "lua_settop", lua_settop, error_) &&
                     bind(lib, "lua_pushvalue", lua_pushvalue, error_) &&
-                    bind(lib, "lua_pushlstring", lua_pushlstring, error_) &&
                     bind(lib, "lua_pushcclosure", lua_pushcclosure, error_) &&
                     bind(lib, "lua_settable", lua_settable, error_) &&
                     bind(lib, "lua_tolstring", lua_tolstring, error_) &&
-                    bind(lib, "luaL_loadbuffer", luaL_loadbuffer, error_) &&
-                    bind(lib, "lua_error", lua_error, error_);
+                    bind(lib, "luaL_loadbuffer", luaL_loadbuffer, error_);
 
     if (!ok) {
         std::fprintf(stderr, "bytecode: %s\n", error_.c_str());
+        // Keep raise helpers + library so gmod13_open can report via lua_error.
         return false;
     }
 
@@ -220,9 +273,26 @@ bool LuaAPI::load() {
     return true;
 }
 
+void LuaAPI::unload() {
+    if (library_ != nullptr && library_owned_) {
+        close_library(static_cast<LibraryHandle>(library_));
+    }
+
+    library_ = nullptr;
+    library_owned_ = false;
+    loaded_ = false;
+
+    lua_settop = nullptr;
+    lua_pushvalue = nullptr;
+    lua_pushlstring = nullptr;
+    lua_pushcclosure = nullptr;
+    lua_settable = nullptr;
+    lua_tolstring = nullptr;
+    luaL_loadbuffer = nullptr;
+    lua_error = nullptr;
+}
+
 LuaAPI &lua_api() {
     static LuaAPI api;
-    static const bool initialized = api.load();
-    (void)initialized;
     return api;
 }

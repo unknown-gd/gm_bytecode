@@ -3,10 +3,12 @@
 /out/
 /result
 /result-*
-/flake.lock
 /.vscode
 /CMakeUserPresets.json
 /cmake-build-*/
+/compile_commands.json
+/.cache/
+/.zed/settings.json
 *.user
 *.suo
 *.ncb
