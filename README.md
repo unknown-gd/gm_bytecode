@@ -1,5 +1,7 @@
 # gm_bytecode
 
+[![Build](https://github.com/unknown-gd/gm_bytecode/actions/workflows/build.yml/badge.svg)](https://github.com/unknown-gd/gm_bytecode/actions/workflows/build.yml)
+
 It's a bytecode loader for gmod servers and clients
 
 Repository: https://github.com/unknown-gd/gm_bytecode
